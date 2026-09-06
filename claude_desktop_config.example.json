@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "vector-toolbox": {
+      "command": "/Users/user/VectorToolBoxMCP/.venv/bin/vector-toolbox-mcp"
+    }
+  }
+}
