@@ -1,9 +1,24 @@
+# Environment & secrets
 .env
-.env.example
-.venv/
+.env.*
+!.env.example
+
+# macOS metadata
+.DS_Store
+
+# Python caches
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .pytest_cache/
+
+# Virtual environment & builds
+.venv/
 dist/
 build/
 *.egg-info/
+
+# Local / scratch scripts and logs
+scripts/*.log
+scripts/scratch*
+scripts/*_local.py
