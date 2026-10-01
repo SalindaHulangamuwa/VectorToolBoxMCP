@@ -31,3 +31,7 @@ class ReadOnlyError(ToolboxError):
 
 class ConfirmationRequired(ToolboxError):
     """A destructive operation was called without ``confirm=True``."""
+
+
+class NotFound(ToolboxError):
+    """A named collection, client or record does not exist."""

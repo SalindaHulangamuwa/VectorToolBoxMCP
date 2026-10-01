@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from conftest import (
     DENSE_FIELD,
     FTS_FIELD,
@@ -11,6 +10,7 @@ from conftest import (
     SPARSE_FIELD,
     index_model,
 )
+
 from vectortoolbox.backends.pinecone.schema import (
     build_schema,
     capabilities_from_index_model,
@@ -155,7 +155,7 @@ def test_system_named_vector_fields_mean_a_vectors_api_index():
     """Pinecone shows an older Vectors index through the schema API using
     system field names. Reading it with the Documents API fails, so the
     classification has to happen here, not at query time."""
-    caps = capabilities_from_index_model(index_model("olivet-prod", LEGACY_VECTOR_FIELDS))
+    caps = capabilities_from_index_model(index_model("legacy-prod", LEGACY_VECTOR_FIELDS))
     assert caps.api == "vectors"
     assert caps.dense_fields == ["_values"]
     assert caps.sparse_fields == ["_sparse_values"]

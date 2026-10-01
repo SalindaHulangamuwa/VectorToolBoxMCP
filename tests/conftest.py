@@ -30,6 +30,15 @@ def isolated_env(monkeypatch):
         "VTB_PINECONE_CLOUD",
         "VTB_PINECONE_REGION",
         "VTB_DEFAULT_BACKEND",
+        "VTB_CHROMA_CLIENT",
+        "VTB_TRANSPORT",
+        "VTB_AUTH_TOKEN",
+        "VTB_ENV_FILE",
+        "VTB_HOST",
+        "VTB_PORT",
+        "VTB_ALLOWED_HOSTS",
+        "VTB_CHROMA_PATH",
+        "CHROMA_API_KEY",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("PINECONE_API_KEY", "test-key")

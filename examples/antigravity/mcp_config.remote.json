@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "vector-toolbox": {
+      "serverUrl": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_VTB_AUTH_TOKEN"
+      }
+    }
+  }
+}

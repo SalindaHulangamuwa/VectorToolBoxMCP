@@ -1,0 +1,13 @@
+name: Feature or new backend
+description: Propose a tool, an option or a new vector database
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you want to do that you cannot today?
+    validations: {required: true}
+  - type: textarea
+    id: shape
+    attributes:
+      label: Proposed tool(s) or behaviour

@@ -1,0 +1,18 @@
+{
+  "inputs": [
+    { "type": "promptString", "id": "pinecone-key", "description": "Pinecone API key", "password": true }
+  ],
+  "servers": {
+    "vector-toolbox": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "vector-toolbox-mcp[chroma]", "vector-toolbox-mcp"],
+      "env": { "PINECONE_API_KEY": "${input:pinecone-key}" }
+    },
+    "vector-toolbox-remote": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp",
+      "headers": { "Authorization": "Bearer YOUR_VTB_AUTH_TOKEN" }
+    }
+  }
+}

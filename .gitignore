@@ -22,3 +22,8 @@ build/
 scripts/*.log
 scripts/scratch*
 scripts/*_local.py
+
+# Local scratch
+.vtb_sync.tgz
+chroma_data/
+.ruff_cache/

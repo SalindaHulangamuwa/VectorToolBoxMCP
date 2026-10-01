@@ -1,37 +1,74 @@
 [project]
 name = "vector-toolbox-mcp"
-version = "0.1.0"
-description = "MCP Toolbox for vector databases - a single MCP server with pluggable vector-store backends. Pinecone first."
+version = "0.2.0"
+description = "One MCP server for many vector databases - Pinecone and Chroma today - with pluggable embedding providers."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Salinda Hulangamuwa" }]
+keywords = [
+    "mcp", "model-context-protocol", "vector-database", "pinecone", "chroma", "chromadb",
+    "embeddings", "rag", "semantic-search", "claude", "llm",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
 dependencies = [
     "mcp>=1.9.0",
     "pinecone>=10.0.0",
     "pydantic>=2.7",
     "python-dotenv>=1.0",
+    "uvicorn>=0.30",
 ]
 
 [project.optional-dependencies]
+chroma = ["chromadb>=1.0"]
 openai = ["openai>=1.40"]
 cohere = ["cohere>=5.0"]
 local = ["sentence-transformers>=3.0"]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6"]
-all = ["openai>=1.40", "cohere>=5.0", "sentence-transformers>=3.0"]
+# Everything except the multi-GB local sentence-transformers stack.
+all = ["chromadb>=1.0", "openai>=1.40", "cohere>=5.0"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6", "httpx>=0.27", "build>=1.2"]
+
+[project.urls]
+Homepage = "https://github.com/SalindaHulangamuwa/VectorToolBoxMCP"
+Repository = "https://github.com/SalindaHulangamuwa/VectorToolBoxMCP"
+Issues = "https://github.com/SalindaHulangamuwa/VectorToolBoxMCP/issues"
+Changelog = "https://github.com/SalindaHulangamuwa/VectorToolBoxMCP/blob/main/CHANGELOG.md"
 
 [project.scripts]
 vector-toolbox-mcp = "vectortoolbox.server:main"
+vector-toolbox-install = "vectortoolbox.installer:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vectortoolbox"]
 
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "LICENSE", "CHANGELOG.md", ".env.example"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]
+ignore = ["B905"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

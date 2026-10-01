@@ -89,11 +89,12 @@ class IndexCapabilities(BaseModel):
     """
 
     index: str
-    api: Literal["documents", "vectors", "integrated"] = Field(
+    api: Literal["documents", "vectors", "integrated", "collection"] = Field(
         description=(
             "'documents' = schema index read via the Documents API. "
             "'vectors' = legacy dimension/metric index read via the Vectors API. "
-            "'integrated' = index with a hosted embedding model attached."
+            "'integrated' = index with a hosted embedding model attached. "
+            "'collection' = a Chroma collection (one embedding space + documents)."
         )
     )
     dense_fields: list[str] = []

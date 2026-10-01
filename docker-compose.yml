@@ -1,0 +1,40 @@
+# docker compose up -d                      -> server on http://127.0.0.1:8000/mcp
+# docker compose --profile chroma up -d     -> plus a Chroma server it uses as its "default" client
+#
+# Secrets come from .env (copy .env.example). Set VTB_AUTH_TOKEN before
+# exposing the port beyond localhost.
+
+services:
+  vector-toolbox:
+    image: ghcr.io/salindahulangamuwa/vector-toolbox-mcp:latest
+    build: .
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      VTB_TRANSPORT: http
+      VTB_HOST: 0.0.0.0
+      VTB_PORT: "8000"
+      # Uncomment with `--profile chroma` to use the bundled Chroma server
+      # instead of the in-container persistent store:
+      # VTB_CHROMA_CLIENT: http
+      # VTB_CHROMA_HOST: chroma
+      # VTB_CHROMA_PORT: "8000"
+    ports:
+      - "127.0.0.1:8000:8000"   # loopback only; change deliberately, with a token set
+    volumes:
+      - vtb-data:/data
+
+  chroma:
+    profiles: ["chroma"]
+    image: chromadb/chroma:latest
+    restart: unless-stopped
+    volumes:
+      - chroma-data:/data
+    ports:
+      - "127.0.0.1:8001:8000"
+
+volumes:
+  vtb-data:
+  chroma-data:

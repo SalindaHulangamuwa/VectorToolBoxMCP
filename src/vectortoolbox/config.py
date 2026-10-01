@@ -4,28 +4,39 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from pathlib import Path
 from functools import lru_cache
+from pathlib import Path
+
 
 def _load_dotenv() -> None:
-    """Load a .env sitting next to the project, not next to the caller.
+    """Find and load a .env file. Variables already set always win.
 
-    An MCP client launches the server with an unpredictable working directory
-    (Claude Desktop uses "/"), so dotenv's default cwd-upwards search finds
-    nothing. Look beside the installed package instead, then fall back to the
-    normal search for the editable-install and run-from-source cases.
+    Order: ``VTB_ENV_FILE`` (or ``--env-file``) if given; else a .env beside a
+    source checkout (MCP clients launch servers with an unpredictable working
+    directory - Claude Desktop uses "/" - so a cwd search alone finds nothing);
+    else ``~/.config/vector-toolbox/.env``; else the usual search from the cwd.
+    Installed from PyPI (uvx / pip) there is usually no .env at all, and
+    settings come from the client config's ``env`` block instead.
     """
     try:
         from dotenv import load_dotenv
     except Exception:  # pragma: no cover - dotenv is optional
         return
 
+    explicit = os.environ.get("VTB_ENV_FILE")
+    if explicit:
+        load_dotenv(os.path.expanduser(explicit))
+        return
     here = Path(__file__).resolve()
-    for parent in here.parents[:4]:
+    for parent in here.parents[:3]:  # src/vectortoolbox -> src -> repo root
         candidate = parent / ".env"
-        if candidate.is_file():
+        if candidate.is_file() and (parent / "pyproject.toml").is_file():
             load_dotenv(candidate)
             return
+    user_file = Path.home() / ".config" / "vector-toolbox" / ".env"
+    if user_file.is_file():
+        load_dotenv(user_file)
+        return
     load_dotenv()
 
 
@@ -66,7 +77,26 @@ class Settings:
     openai_api_key: str | None = None
     cohere_api_key: str | None = None
 
+    # Chroma - the "default" client, built lazily from these settings.
+    # kind: ephemeral (in-memory) | persistent (local directory) | http | cloud
+    chroma_client: str = "persistent"
+    chroma_path: str = "~/.vector-toolbox/chroma"
+    chroma_host: str = "localhost"
+    chroma_port: int = 8000
+    chroma_ssl: bool = False
+    chroma_api_key: str | None = None
+    chroma_tenant: str | None = None
+    chroma_database: str | None = None
+
     read_only: bool = False
+
+    # HTTP transport (Docker / remote). stdio ignores these.
+    http_host: str = "127.0.0.1"
+    http_port: int = 8000
+    http_path: str = "/mcp"
+    auth_token: str | None = None
+    allowed_hosts: list[str] | None = None
+    stateless_http: bool = False
 
 
 @lru_cache(maxsize=1)
@@ -84,10 +114,26 @@ def get_settings() -> Settings:
         sparse_model=_env("VTB_SPARSE_MODEL", default="pinecone-sparse-english-v0"),
         openai_api_key=_env("OPENAI_API_KEY"),
         cohere_api_key=_env("COHERE_API_KEY"),
+        chroma_client=_env("VTB_CHROMA_CLIENT", default="persistent"),
+        chroma_path=_env("VTB_CHROMA_PATH", default="~/.vector-toolbox/chroma"),
+        chroma_host=_env("VTB_CHROMA_HOST", default="localhost"),
+        chroma_port=int(_env("VTB_CHROMA_PORT", default="8000")),
+        chroma_ssl=_flag("VTB_CHROMA_SSL"),
+        chroma_api_key=_env("CHROMA_API_KEY", "VTB_CHROMA_API_KEY"),
+        chroma_tenant=_env("CHROMA_TENANT", "VTB_CHROMA_TENANT"),
+        chroma_database=_env("CHROMA_DATABASE", "VTB_CHROMA_DATABASE"),
         read_only=_flag("VTB_READ_ONLY"),
+        http_host=_env("VTB_HOST", default="127.0.0.1"),
+        http_port=int(_env("VTB_PORT", default="8000")),
+        http_path=_env("VTB_HTTP_PATH", default="/mcp"),
+        auth_token=_env("VTB_AUTH_TOKEN"),
+        allowed_hosts=[h.strip() for h in (_env("VTB_ALLOWED_HOSTS") or "").split(",") if h.strip()] or None,
+        stateless_http=_flag("VTB_STATELESS_HTTP"),
     )
 
 
 def reset_settings_cache() -> None:
-    """Used by tests after monkeypatching the environment."""
+    """Re-read settings (tests, and main() after applying CLI flags)."""
+    if os.environ.get("VTB_ENV_FILE"):
+        _load_dotenv()
     get_settings.cache_clear()

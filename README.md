@@ -1,12 +1,206 @@
 # Vector Toolbox MCP
 
+[![CI](https://github.com/SalindaHulangamuwa/VectorToolBoxMCP/actions/workflows/ci.yml/badge.svg)](https://github.com/SalindaHulangamuwa/VectorToolBoxMCP/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/vector-toolbox-mcp)](https://pypi.org/project/vector-toolbox-mcp/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 One MCP server, many vector databases — the same idea as Google's MCP Toolbox for
-databases, applied to vector stores. **Pinecone is the first backend**; the tool
+databases, applied to vector stores. **Pinecone and Chroma** are wired up; the tool
 surface, backend contract and embedding layer are built so Qdrant, Weaviate,
 Milvus or pgvector slot in behind the same shape.
 
 Built against the **Pinecone Python SDK v10** — the Documents API with declared
 field schemas, not the older `dimension`/`metric` index model.
+
+## Quick start
+
+You need [uv](https://docs.astral.sh/uv/getting-started/installation/) (or Docker).
+Add this to your MCP client's config and restart it:
+
+```json
+{
+  "mcpServers": {
+    "vector-toolbox": {
+      "command": "uvx",
+      "args": ["--from", "vector-toolbox-mcp[chroma]", "vector-toolbox-mcp"],
+      "env": { "PINECONE_API_KEY": "pcsk_..." }
+    }
+  }
+}
+```
+
+Or let the installer find the config file, keep your other servers, and use
+absolute paths for you:
+
+```bash
+uvx --from vector-toolbox-mcp vector-toolbox-install claude-desktop   # or: antigravity, cursor
+```
+
+Chroma needs no account — its default store is a local folder
+(`~/.vector-toolbox/chroma`). Pinecone needs `PINECONE_API_KEY`. Full options:
+[Install and connect](#install-and-connect).
+
+---
+
+## Install and connect
+
+| Way to run | Best for | Command the client launches |
+|---|---|---|
+| **uvx** (PyPI) | Most people | `uvx --from vector-toolbox-mcp[chroma] vector-toolbox-mcp` |
+| **Docker, stdio** | No Python on the machine | `docker run -i --rm -e VTB_TRANSPORT=stdio ghcr.io/salindahulangamuwa/vector-toolbox-mcp` |
+| **Docker, HTTP** | One shared server, several clients or machines | client connects to `http://host:8000/mcp` |
+| **Source checkout** | Developing the server | `/path/to/VectorToolBoxMCP/.venv/bin/vector-toolbox-mcp` |
+
+**Extras** pick optional dependencies: `chroma`, `openai`, `cohere`, `local`
+(sentence-transformers — large), or `all` (everything but `local`). Pinecone
+support is always included. Example: `vector-toolbox-mcp[chroma,openai]`.
+
+### Configuration
+
+Everything is an environment variable — set them in the client config's `env`
+block, in a `.env` file, or with `-e` for Docker. The full list with comments is
+in [`.env.example`](.env.example). The ones most people touch:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PINECONE_API_KEY` | — | Pinecone backend |
+| `VTB_CHROMA_CLIENT` | `persistent` | Chroma default client: `ephemeral`, `persistent`, `http`, `cloud` |
+| `VTB_CHROMA_PATH` | `~/.vector-toolbox/chroma` | Where the persistent Chroma store lives |
+| `CHROMA_API_KEY` / `CHROMA_TENANT` / `CHROMA_DATABASE` | — | Chroma Cloud |
+| `VTB_EMBED_PROVIDER` / `VTB_EMBED_MODEL` | `pinecone` / `llama-text-embed-v2` | Default embedder (`pinecone`, `openai`, `cohere`, `huggingface`) |
+| `OPENAI_API_KEY`, `COHERE_API_KEY` | — | Those embedders |
+| `VTB_READ_ONLY` | `false` | `true` disables every write and delete tool |
+| `VTB_TRANSPORT` | `stdio` | `http` to serve over streamable HTTP |
+| `VTB_HOST` / `VTB_PORT` / `VTB_HTTP_PATH` | `127.0.0.1` / `8000` / `/mcp` | HTTP listener |
+| `VTB_AUTH_TOKEN` | — | Require `Authorization: Bearer <token>` on HTTP |
+| `VTB_ALLOWED_HOSTS` | — | Host headers to accept on HTTP (DNS-rebinding protection) |
+
+A `.env` is found, in order: `--env-file` / `VTB_ENV_FILE`, a source checkout's
+root, `~/.config/vector-toolbox/.env`, the working directory. Real environment
+variables always win. Command-line flags: `vector-toolbox-mcp --help`.
+
+### Claude Desktop
+
+Config file: macOS `~/Library/Application Support/Claude/claude_desktop_config.json`,
+Windows `%APPDATA%\Claude\claude_desktop_config.json` (Settings → Developer →
+Edit Config opens it).
+
+```bash
+vector-toolbox-install claude-desktop                  # uvx
+vector-toolbox-install claude-desktop --mode docker
+vector-toolbox-install claude-desktop --mode source    # from a checkout
+```
+
+or paste one of [`examples/claude-desktop/`](examples/claude-desktop) — `uvx.json`,
+`docker.json`, `source.json`. Then **quit Claude Desktop completely** (Cmd+Q on
+macOS, Exit from the tray on Windows) and reopen it.
+
+> **macOS: "spawn uvx ENOENT".** Apps started from the Dock don't get your
+> shell's `PATH`. Use the absolute path from `which uvx` as `command` (the
+> installer does this for you).
+
+Claude Desktop's config file only launches local servers. To use a remote HTTP
+deployment, add its URL as a custom connector in Claude's settings instead.
+
+### Claude Code
+
+```bash
+claude mcp add vector-toolbox -e PINECONE_API_KEY=pcsk_... -- uvx --from 'vector-toolbox-mcp[chroma]' vector-toolbox-mcp
+claude mcp add --transport http vector-toolbox http://localhost:8000/mcp --header "Authorization: Bearer $VTB_AUTH_TOKEN"
+```
+
+### Google Antigravity
+
+Antigravity (IDE, 2.0 and CLI) reads `~/.gemini/config/mcp_config.json`, or
+`.agents/mcp_config.json` inside a workspace. In the IDE: agent panel **…** →
+**MCP Servers** → **Manage MCP Servers** → **View raw config**.
+
+```bash
+vector-toolbox-install antigravity                                  # uvx, local
+vector-toolbox-install antigravity --mode http --url http://localhost:8000/mcp --token-env VTB_AUTH_TOKEN
+```
+
+Examples: [`examples/antigravity/mcp_config.json`](examples/antigravity/mcp_config.json)
+(local) and [`mcp_config.remote.json`](examples/antigravity/mcp_config.remote.json)
+(remote — note Antigravity's key is `serverUrl`, not `url`). Refresh the server
+list after editing.
+
+### Cursor and VS Code
+
+Cursor: `~/.cursor/mcp.json` or `.cursor/mcp.json` in a project —
+`vector-toolbox-install cursor`, or see [`examples/cursor/mcp.json`](examples/cursor/mcp.json).
+VS Code: `.vscode/mcp.json` uses a `servers` key and can prompt for secrets —
+see [`examples/vscode/mcp.json`](examples/vscode/mcp.json).
+
+### Docker
+
+The image `ghcr.io/salindahulangamuwa/vector-toolbox-mcp` (linux/amd64 and
+arm64) runs as a non-root user with `/data` as its volume: the persistent Chroma
+store and Chroma's embedding-model cache live there.
+
+**stdio** — the client starts a container per session (see
+[`examples/claude-desktop/docker.json`](examples/claude-desktop/docker.json)):
+
+```bash
+docker run -i --rm -e VTB_TRANSPORT=stdio -e PINECONE_API_KEY \
+  -v vector-toolbox-data:/data ghcr.io/salindahulangamuwa/vector-toolbox-mcp
+```
+
+**HTTP** — one long-running server, any number of clients:
+
+```bash
+export VTB_AUTH_TOKEN=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+docker run -d --name vector-toolbox -p 127.0.0.1:8000:8000 \
+  -e VTB_AUTH_TOKEN -e PINECONE_API_KEY -v vector-toolbox-data:/data \
+  ghcr.io/salindahulangamuwa/vector-toolbox-mcp
+curl http://127.0.0.1:8000/health          # {"status": "ok", ...}
+```
+
+Clients connect to `http://127.0.0.1:8000/mcp` with
+`Authorization: Bearer $VTB_AUTH_TOKEN`.
+
+**Compose** — [`docker-compose.yml`](docker-compose.yml) runs the HTTP server
+with secrets from `.env`; `--profile chroma` adds a Chroma server alongside it:
+
+```bash
+cp .env.example .env        # fill in keys and VTB_AUTH_TOKEN
+docker compose up -d
+docker compose --profile chroma up -d
+```
+
+Build it yourself with `docker build -t vector-toolbox-mcp .`
+(`--build-arg EXTRAS=chroma,openai,cohere,local` to include sentence-transformers).
+
+> **Exposing HTTP beyond localhost:** set `VTB_AUTH_TOKEN`, put TLS in front
+> (Caddy, nginx, a cloud load balancer), and set `VTB_ALLOWED_HOSTS` to your
+> domain. The server prints a warning if it binds to a public address without
+> a token. See [SECURITY.md](SECURITY.md).
+
+### From source
+
+```bash
+git clone https://github.com/SalindaHulangamuwa/VectorToolBoxMCP.git && cd VectorToolBoxMCP
+uv venv && uv pip install -e ".[chroma]"
+cp .env.example .env                                  # optional; read automatically from here
+python scripts/handshake_check.py .venv/bin/vector-toolbox-mcp   # proves MCP works over stdio
+.venv/bin/vector-toolbox-install claude-desktop --mode source
+```
+
+`bash scripts/setup_macos.sh` does the venv, install and handshake in one go.
+
+### If it does not show up
+
+| Symptom | Cause |
+|---|---|
+| Server missing from the client | The client was reloaded, not fully restarted |
+| `spawn … ENOENT` | `command` isn't on the GUI app's `PATH` — use an absolute path |
+| Every call errors | Keys not reaching the server — call `vectortoolbox_status`, or run the command by hand |
+| Only read tools work | `VTB_READ_ONLY=true` |
+| `chromadb is not installed` | Add the `chroma` extra: `vector-toolbox-mcp[chroma]` |
+| HTTP returns 401 | Missing or wrong `Authorization: Bearer` header |
+
+Running the command by hand shows start-up errors the client hides. It then
+waits silently for JSON-RPC on stdin — that is normal.
 
 ---
 
@@ -165,85 +359,156 @@ live smoke test polls rather than assuming.
 
 **Utilities** — `pinecone_embed`, `pinecone_list_models`, `vectortoolbox_status`
 
+**Chroma** — clients: `chroma_create_client`, `chroma_list_clients`,
+`chroma_remove_client`, `chroma_heartbeat` · collections:
+`chroma_list_embedding_functions`, `chroma_create_collection`,
+`chroma_get_collection`, `chroma_list_collections`, `chroma_modify_collection`,
+`chroma_configure_collection`, `chroma_delete_collection`, `chroma_count`,
+`chroma_peek`, `chroma_fork_collection` · records: `chroma_add`,
+`chroma_update`, `chroma_upsert`, `chroma_conditional_transaction`,
+`chroma_delete` · reading: `chroma_query`, `chroma_get`,
+`chroma_full_text_search`, `chroma_validate_filter`, `chroma_sample_metadata`
+
 Destructive tools (`pinecone_delete_index`, `pinecone_delete_namespace`,
-`delete_all`, `pinecone_purge_expired`) require `confirm=true`. Setting
+`delete_all`, `pinecone_purge_expired`, `chroma_delete_collection`,
+`chroma_delete` with `delete_all`) require `confirm=true`. Setting
 `VTB_READ_ONLY=true` disables every write tool.
 
 ---
 
-## Setup — connecting to Claude Desktop
+## Chroma
 
-The virtualenv must be created **on the machine Claude Desktop runs on**, since
-the config points at a binary inside it.
+The second backend. Chroma's model is smaller than Pinecone's — a **collection**
+is one embedding space, and each record is an id, an embedding, an optional
+document string, flat metadata and an optional URI. There is no field schema;
+what you choose up front is the **embedding route** and the **index config**.
 
-```bash
-cd ~/VectorToolBoxMCP
-bash scripts/setup_macos.sh
-```
-
-Optional embedding providers are extras. Note that `uv venv` creates a
-virtualenv **without pip**, so install them through uv:
+Install the extra (it is optional so a Pinecone-only setup stays lean):
 
 ```bash
-uv pip install --python .venv/bin/python -e '.[openai]'    # or [cohere], [local], [all]
+uv pip install --python .venv/bin/python -e '.[chroma]'
 ```
 
-That creates `.venv`, installs the package, verifies the server answers a real
-MCP handshake over stdio, and prints the config block with your absolute path
-already filled in.
+### Clients
 
-Then edit `~/Library/Application Support/Claude/claude_desktop_config.json`
-(create it if absent — Claude Desktop also opens it from
-Settings → Developer → Edit Config):
+Every `chroma_*` tool takes `client` (default `"default"`). Create more with
+`chroma_create_client` and use them side by side:
 
-```json
-{
-  "mcpServers": {
-    "vector-toolbox": {
-      "command": "/Users/user/VectorToolBoxMCP/.venv/bin/vector-toolbox-mcp"
-    }
-  }
-}
-```
+| `kind` | What it is | Settings |
+|---|---|---|
+| `ephemeral` | In-memory; gone on restart. All ephemeral clients in the process share one store | — |
+| `persistent` | Local directory | `path` (default `VTB_CHROMA_PATH` = `~/.vector-toolbox/chroma`) |
+| `http` | Self-hosted server (`chroma run`, Docker) | `host`, `port`, `ssl`, `headers` |
+| `cloud` | Chroma Cloud | key from `CHROMA_API_KEY` or `api_key_env_var`; `tenant`/`database` |
 
-**Quit Claude Desktop completely** (Cmd+Q — closing the window is not enough)
-and reopen it. The tools appear under the connectors/tools menu.
+The `default` client is built from `VTB_CHROMA_CLIENT` (default `persistent`)
+the first time a tool needs it. API keys are never accepted as tool arguments —
+only the *name* of an environment variable — so they stay out of transcripts.
 
-No `env` block is needed: `config.py` looks for a `.env` beside the project, not
-beside the caller, because MCP clients launch servers with an unpredictable
-working directory (Claude Desktop uses `/`). If you would rather keep secrets in
-the client config, an `env` object on the server entry still works and takes
-precedence over nothing — `.env` values are only applied to variables not
-already set.
+### Embedding: two routes, chosen per collection
 
-### Claude Code
+* **Chroma embedding function** — `embedding_function={"name": "openai",
+  "kwargs": {"model_name": "text-embedding-3-small", "api_key_env_var":
+  "OPENAI_API_KEY"}}`. Chroma embeds documents and `query_texts` itself and
+  persists the config with the collection. `chroma_list_embedding_functions`
+  lists the ~30 built-ins.
+* **Toolbox embedder** — `toolbox_embedder={"provider": "openai", "model": …,
+  "dimension": …}`: the same providers the Pinecone tools use. This server
+  embeds and sends plain vectors; the choice is recorded in the collection's
+  metadata (`vtb_embed_*`) so later writes and queries embed the same way.
 
-```bash
-claude mcp add vector-toolbox -- /Users/user/VectorToolBoxMCP/.venv/bin/vector-toolbox-mcp
-```
+With neither, Chroma's `default` function (all-MiniLM-L6-v2, 384 dims) is used
+and **downloads an ~80 MB ONNX model on first use**. Records that already carry
+an embedding are never re-embedded.
 
-### If it does not show up
+### Index configuration
 
-| Symptom | Cause |
+| | HNSW (single-node: ephemeral, persistent, most self-hosted) | SPANN (Chroma Cloud / distributed) |
+|---|---|---|
+| Fixed at creation | `space`, `ef_construction`, `max_neighbors` | `space`, `write_nprobe`, `ef_construction`, `max_neighbors`, `reassign_neighbor_count`, `split_threshold`, `merge_threshold` |
+| Tunable later (`chroma_configure_collection`) | `ef_search`, `num_threads`, `batch_size`, `sync_threshold`, `resize_factor` | `search_nprobe` (≤128), `ef_search` |
+
+`space` is `l2` (default), `ip` or `cosine` — pick `cosine` for most text
+models. Single-node Chroma **silently ignores a SPANN config**, so the toolbox
+refuses one on an ephemeral/persistent client rather than let it pass.
+
+### Writes — what Chroma does silently, surfaced
+
+| Chroma behaviour | What the toolbox reports |
 |---|---|
-| Server missing from the menu | Claude Desktop was reloaded, not quit and reopened |
-| "spawn ENOENT" | The `command` path is wrong, or the venv was built on a different OS |
-| Server appears, every call errors | `PINECONE_API_KEY` not reaching it — run the binary by hand and call `vectortoolbox_status` |
-| Only read tools work | `VTB_READ_ONLY=true` in `.env` |
+| `add` skips ids that already exist, without error | `skipped_existing` (or fail with `on_conflict="error"`) |
+| `update` skips ids that do not exist, without error | `skipped_missing` |
+| `upsert` doesn't say what it did | `created` / `updated` counts |
+| Mixed "some records have embeddings, some don't" fails | caught up front, or gaps filled when `embed_provider` is set |
 
-Run the binary directly to see startup errors that the client swallows:
+Records can be passed as Chroma's parallel columns (`ids`, `documents`,
+`embeddings`, `metadatas`, `uris`) or as `records=[{"id", "document", …}]`.
+Metadata is flat: scalars or **non-empty, single-type arrays** (`{"genres":
+["action", "drama"]}`). `update` merges metadata; a key set to `null` is removed.
 
-```bash
-./.venv/bin/vector-toolbox-mcp
-```
+### Conditional transactions
 
-It will sit waiting for JSON-RPC on stdin; a traceback instead means the import
-or config failed.
+`chroma_conditional_transaction` is optimistic read-check-write: the checks are
+read inside a transaction, the writes are buffered, and the commit only lands if
+the records read are unchanged. Checks can require a record to exist / not
+exist, hold specific metadata values (compare-and-swap), hold an exact
+document, or a filter to match between `min_count` and `max_count` records.
+Conflicts are retried up to `max_retries`.
+
+Chroma's limits are validated before anything runs: one collection, at most one
+write per id, deletes by explicit id only, reads via `get` only. This needs a
+`chromadb` release with `Collection.conditional()` — **1.5.9 (current on PyPI
+when this was written) does not have it**, so the tool refuses unless you pass
+`allow_non_atomic=true` (same checks then writes, no isolation, reported as
+`atomic: false`).
+
+### Query, get and results shape
+
+* `chroma_query` — nearest neighbours; a batch of `query_texts` or
+  `query_embeddings`, each with its own `n_results` list.
+* `chroma_get` — by id and/or filter, paged with `limit`/`offset`, no ranking.
+* `include` picks what comes back: `documents`, `metadatas`, `embeddings`,
+  `uris`, plus `distances` for queries. Ids always come back.
+* `output="rows"` (default) returns one object per record, nearest first, with
+  `similarity = 1 − distance` added on cosine/ip collections. `output="columns"`
+  returns Chroma's native column-major shape (`ids[q][i]` for queries,
+  `ids[i]` for get); `"both"` returns both.
+
+### Metadata filtering and full-text search
+
+| `where` (metadata) | |
+|---|---|
+| Comparison | `{"year": 2024}`, `$eq $ne`, numeric `$gt $gte $lt $lte` |
+| Inclusion | `{"genre": {"$in": ["a", "b"]}}`, `$nin` |
+| Arrays | `{"genres": {"$contains": "action"}}`, `$not_contains` |
+| Logical | `$and`, `$or`, nestable |
+
+| `where_document` (document text) | |
+|---|---|
+| Substring | `{"$contains": "refund"}`, `$not_contains` (case-sensitive) |
+| Regex | `{"$regex": "(?i)^invoice \\d+"}`, `$not_regex` — no look-around or backreferences |
+| Logical | `$and`, `$or` |
+
+`chroma_validate_filter` shows exactly what will be sent. Forgiving spellings
+are rewritten (`{}` → no filter, several keys → `$and`, several operators on one
+field → `$and`, one-item `$and` → the item); real mistakes — a bare list
+instead of `$in`/`$contains`, `$exists`, `$not`, null — come back as
+explanations. `chroma_sample_metadata` reports each key's type (`str[]` marks
+array metadata) and the operators that fit.
+
+`chroma_full_text_search` builds `where_document` from term lists
+(`contains`, `not_contains`, `regex`, `not_regex`, `match="all"|"any"`). On its
+own it is a filter — matches come back unranked. Add `query_text` to **combine
+with document search**: the text filter restricts a vector query, so you get
+semantic ranking over only the documents that contain your terms.
+
+---
 
 ## Tests
 
 ```bash
-.venv/bin/pytest              # unit tests, Pinecone fully mocked
+.venv/bin/pytest              # unit tests: Pinecone mocked, Chroma run in-memory for real
+.venv/bin/ruff check src tests
 .venv/bin/python scripts/smoke_test.py    # live; needs PINECONE_API_KEY
 ```
 
@@ -252,12 +517,11 @@ of the five recipes, and deletes it again.
 
 ---
 
-## Adding a second vector database
+## Contributing
 
-1. Implement `vectortoolbox.core.base.VectorStoreBackend`.
-2. `register_backend("qdrant", QdrantBackend)` in the backend package's `__init__`.
-3. Add a `tools.py` with `qdrant_*` tools and call its `register(mcp)` from
-   `server.build_server`.
+Adding a backend, a tool or a fix: see [CONTRIBUTING.md](CONTRIBUTING.md).
+Security reports: [SECURITY.md](SECURITY.md). Changes: [CHANGELOG.md](CHANGELOG.md).
 
-Capability reporting (`IndexCapabilities`) and result fusion
-(`core/fusion.py`) are backend-neutral and get reused as-is.
+## License
+
+[MIT](LICENSE)

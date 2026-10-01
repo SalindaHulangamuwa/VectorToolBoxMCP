@@ -1,8 +1,8 @@
 """MCP tool definitions for the Pinecone backend.
 
-Naming convention: ``pinecone_<verb>_<noun>``. When a second backend lands its
-tools are prefixed with its own name, and the generic cross-backend tools live
-in ``vectortoolbox.tools_common``.
+Naming convention: ``pinecone_<verb>_<noun>``. Cross-backend tools such as
+``vectortoolbox_status`` live in ``vectortoolbox.tools_common``; this module
+only contributes its ``status()`` section to it.
 """
 
 from __future__ import annotations
@@ -11,10 +11,10 @@ import functools
 from typing import Any, Literal
 
 from ..._mcp_compat import MCPServerType
-
 from ...config import get_settings
 from ...core.types import DenseFieldSpec, SparseFieldSpec, TextFieldSpec
 from ...errors import ReadOnlyError, ToolboxError
+from ...tools_common import register_status_provider
 from . import ttl as ttl_mod
 from .backend import PineconeBackend
 
@@ -55,7 +55,24 @@ def _safe(write: bool = False):
     return decorator
 
 
+def status() -> dict[str, Any]:
+    """Pinecone section of ``vectortoolbox_status``."""
+    settings = get_settings()
+    return {
+        "api_key_set": bool(settings.pinecone_api_key),
+        "region": f"{settings.pinecone_cloud}/{settings.pinecone_region}",
+        "ttl": {
+            "implementation": "client-side",
+            "field": ttl_mod.TTL_FIELD,
+            "note": "Pinecone has no server-side record expiry; this server stamps and "
+            "filters on an epoch field and purges on demand.",
+        },
+    }
+
+
 def register(mcp: MCPServerType) -> None:
+    register_status_provider("pinecone", status)
+
     # ======================================================================
     # Index lifecycle
     # ======================================================================
@@ -763,29 +780,3 @@ def register(mcp: MCPServerType) -> None:
     ) -> dict[str, Any]:
         """List the hosted embedding and reranking models Pinecone offers."""
         return {"models": _backend().list_models(model_type=model_type)}
-
-    @mcp.tool()
-    @_safe()
-    def vectortoolbox_status() -> dict[str, Any]:
-        """Report configuration: backends, default embedding provider, read-only mode."""
-        from ...core.registry import list_backends
-        from ...embeddings import DENSE_PROVIDERS, SPARSE_PROVIDERS
-
-        settings = get_settings()
-        return {
-            "backends": list_backends(),
-            "default_backend": settings.default_backend,
-            "pinecone_api_key_set": bool(settings.pinecone_api_key),
-            "pinecone_region": f"{settings.pinecone_cloud}/{settings.pinecone_region}",
-            "dense_embedding_providers": sorted(DENSE_PROVIDERS),
-            "sparse_embedding_providers": sorted(SPARSE_PROVIDERS),
-            "default_dense_embedder": f"{settings.embed_provider}/{settings.embed_model}",
-            "default_sparse_embedder": f"{settings.sparse_provider}/{settings.sparse_model}",
-            "read_only": settings.read_only,
-            "ttl": {
-                "implementation": "client-side",
-                "field": ttl_mod.TTL_FIELD,
-                "note": "Pinecone has no server-side record expiry; this server stamps and "
-                "filters on an epoch field and purges on demand.",
-            },
-        }

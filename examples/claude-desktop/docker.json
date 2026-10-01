@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "vector-toolbox": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "VTB_TRANSPORT=stdio",
+        "-e", "PINECONE_API_KEY",
+        "-e", "OPENAI_API_KEY",
+        "-v", "vector-toolbox-data:/data",
+        "ghcr.io/salindahulangamuwa/vector-toolbox-mcp:latest"
+      ],
+      "env": {
+        "PINECONE_API_KEY": "pcsk_...",
+        "OPENAI_API_KEY": "sk-..."
+      }
+    }
+  }
+}

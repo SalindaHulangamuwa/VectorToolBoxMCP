@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "vector-toolbox": {
+      "command": "/absolute/path/to/VectorToolBoxMCP/.venv/bin/vector-toolbox-mcp"
+    }
+  }
+}

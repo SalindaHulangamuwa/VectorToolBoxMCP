@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from conftest import (
     DENSE_FIELD,
     FTS_FIELD,
@@ -11,6 +10,7 @@ from conftest import (
     SPARSE_FIELD,
     index_model,
 )
+
 from vectortoolbox.errors import CapabilityError, ConfirmationRequired
 
 
@@ -308,8 +308,8 @@ def test_top_k_bounds_are_checked(wired):
 # Vectors-API indexes (the shape of every index in a real legacy project)
 # ---------------------------------------------------------------------------
 def test_auto_mode_on_a_vectors_index_uses_the_vectors_api(wired, stub_embedders):
-    backend = _register(wired, "olivet-prod", LEGACY_VECTOR_FIELDS)
-    result = backend.search("olivet-prod", "ns", query="refund policy", top_k=3)
+    backend = _register(wired, "legacy-prod", LEGACY_VECTOR_FIELDS)
+    result = backend.search("legacy-prod", "ns", query="refund policy", top_k=3)
 
     assert result["api"] == "vectors"
     assert result["scored_by"] == ["dense", "sparse"]
@@ -323,43 +323,43 @@ def test_auto_mode_on_a_vectors_index_uses_the_vectors_api(wired, stub_embedders
 
 
 def test_vectors_index_returns_metadata_as_fields(wired, stub_embedders):
-    backend = _register(wired, "olivet-prod", LEGACY_VECTOR_FIELDS)
-    hits = backend.search("olivet-prod", "ns", query="x")["hits"]
+    backend = _register(wired, "legacy-prod", LEGACY_VECTOR_FIELDS)
+    hits = backend.search("legacy-prod", "ns", query="x")["hits"]
     assert hits[0]["id"] == "v1"
     assert hits[0]["fields"] == {"category": "policy"}
 
 
 def test_dense_only_mode_on_a_vectors_index_sends_no_sparse_vector(wired, stub_embedders):
-    backend = _register(wired, "olivet-prod", LEGACY_VECTOR_FIELDS)
-    backend.search("olivet-prod", "ns", mode="dense", query="x")
+    backend = _register(wired, "legacy-prod", LEGACY_VECTOR_FIELDS)
+    backend.search("legacy-prod", "ns", mode="dense", query="x")
     assert wired["index"].calls[0][1].get("sparse_vector") is None
 
 
 def test_full_text_search_on_a_vectors_index_is_refused_with_a_reason(wired):
-    backend = _register(wired, "olivet-prod", LEGACY_VECTOR_FIELDS)
+    backend = _register(wired, "legacy-prod", LEGACY_VECTOR_FIELDS)
     with pytest.raises(CapabilityError) as exc:
-        backend.search("olivet-prod", "ns", mode="text", query="refund")
+        backend.search("legacy-prod", "ns", mode="text", query="refund")
     message = str(exc.value)
     assert "declares no full-text field" in message
     assert "new index" in message
 
 
 def test_document_upsert_to_a_vectors_index_points_at_the_right_tool(wired, stub_embedders):
-    backend = _register(wired, "olivet-prod", LEGACY_VECTOR_FIELDS)
+    backend = _register(wired, "legacy-prod", LEGACY_VECTOR_FIELDS)
     with pytest.raises(CapabilityError, match="pinecone_upsert_vectors"):
-        backend.upsert_documents("olivet-prod", "ns", [{"_id": "1", "body": "x"}])
+        backend.upsert_documents("legacy-prod", "ns", [{"_id": "1", "body": "x"}])
     assert not wired["index"].calls
 
 
 def test_document_update_to_a_vectors_index_points_at_the_right_tool(wired):
-    backend = _register(wired, "olivet-prod", LEGACY_VECTOR_FIELDS)
+    backend = _register(wired, "legacy-prod", LEGACY_VECTOR_FIELDS)
     with pytest.raises(CapabilityError, match="pinecone_update_vector"):
-        backend.update_documents("olivet-prod", "ns", set_fields={"a": 1})
+        backend.update_documents("legacy-prod", "ns", set_fields={"a": 1})
 
 
 def test_vectors_index_still_filters_expired_records(wired, stub_embedders):
-    backend = _register(wired, "olivet-prod", LEGACY_VECTOR_FIELDS)
-    backend.search("olivet-prod", "ns", query="x", filter={"category": {"$eq": "policy"}})
+    backend = _register(wired, "legacy-prod", LEGACY_VECTOR_FIELDS)
+    backend.search("legacy-prod", "ns", query="x", filter={"category": {"$eq": "policy"}})
     sent = wired["index"].calls[0][1]["filter"]
     assert {"category": {"$eq": "policy"}} in sent["$and"]
 

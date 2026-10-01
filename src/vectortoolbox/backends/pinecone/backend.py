@@ -8,7 +8,7 @@ the network lives here; the tool layer is argument validation and formatting.
 from __future__ import annotations
 
 import time
-from typing import Any, Iterable, Sequence
+from typing import Any, Sequence
 
 from ...core.base import VectorStoreBackend
 from ...core.fusion import fuse

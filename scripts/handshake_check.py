@@ -82,17 +82,22 @@ def main() -> int:
         call = read()["result"]
         payload = call.get("structuredContent") or json.loads(call["content"][0]["text"])
         payload = payload.get("result", payload)
-        print(f"tools/call   OK  vectortoolbox_status")
+        print("tools/call   OK  vectortoolbox_status")
         print()
-        print(f"  Pinecone key loaded : {payload['pinecone_api_key_set']}")
-        print(f"  Region              : {payload['pinecone_region']}")
+        pinecone = payload.get("pinecone", {})
+        chroma = payload.get("chroma", {})
+        print(f"  Backends            : {', '.join(payload.get('backends', []))}")
+        print(f"  Pinecone key loaded : {pinecone.get('api_key_set')}")
+        print(f"  Pinecone region     : {pinecone.get('region')}")
+        print(f"  Chroma installed    : {chroma.get('installed')} "
+              f"({chroma.get('chromadb_version') or 'add the [chroma] extra'})")
         print(f"  Dense embedder      : {payload['default_dense_embedder']}")
         print(f"  Sparse embedder     : {payload['default_sparse_embedder']}")
         print(f"  Read-only mode      : {payload['read_only']}")
         if payload["read_only"]:
-            print("    -> every write tool will refuse; set VTB_READ_ONLY=false in .env")
-        if not payload["pinecone_api_key_set"]:
-            print("    -> PINECONE_API_KEY is not reaching the server")
+            print("    -> every write tool will refuse; set VTB_READ_ONLY=false")
+        if not pinecone.get("api_key_set"):
+            print("    -> PINECONE_API_KEY is not set (fine if you only use Chroma)")
         provider, _, model = payload["default_dense_embedder"].partition("/")
         if provider == "pinecone" and model.startswith(("text-embedding-", "embed-")):
             print(f"    -> {model!r} is not a Pinecone-hosted model; "

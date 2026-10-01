@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from conftest import DENSE_FIELD, FTS_FIELD, index_model
 
 
@@ -41,7 +40,8 @@ def test_all_tools_are_registered(server):
     assert "pinecone_create_index" in names
     assert "pinecone_search" in names
     assert "vectortoolbox_status" in names
-    assert len(names) == 28
+    assert len([n for n in names if n.startswith("pinecone_")]) == 27
+    assert "chroma_query" in names
 
 
 def test_every_tool_has_a_docstring(server):
@@ -87,5 +87,28 @@ def test_read_only_mode_blocks_writes(server, wired, monkeypatch):
 def test_status_tool_reports_configuration(server):
     status = call(server, "vectortoolbox_status")
     assert "pinecone" in status["backends"]
-    assert status["ttl"]["implementation"] == "client-side"
+    assert status["pinecone"]["ttl"]["implementation"] == "client-side"
+    assert status["pinecone"]["api_key_set"] is True
     assert "openai" in status["dense_embedding_providers"]
+
+
+def test_status_isolates_a_failing_backend(server, monkeypatch):
+    from vectortoolbox import tools_common
+
+    def broken():
+        raise RuntimeError("backend misconfigured")
+
+    monkeypatch.setitem(tools_common._STATUS_PROVIDERS, "broken", broken)
+    status = call(server, "vectortoolbox_status")
+    assert status["broken"]["error"] == "RuntimeError"
+    assert "ttl" in status["pinecone"]  # the other sections still report
+
+
+def test_backends_do_not_import_each_other():
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[1] / "src" / "vectortoolbox" / "backends"
+    for backend, other in (("pinecone", "chroma"), ("chroma", "pinecone")):
+        for path in (root / backend).glob("*.py"):
+            text = path.read_text()
+            assert f"..{other}" not in text and f"backends.{other}" not in text, path
