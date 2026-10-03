@@ -1,12 +1,11 @@
 # Vector Toolbox MCP
 
-[![CI](https://github.com/SalindaHulangamuwa/VectorToolBoxMCP/actions/workflows/ci.yml/badge.svg)](https://github.com/SalindaHulangamuwa/VectorToolBoxMCP/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/vector-toolbox-mcp)](https://pypi.org/project/vector-toolbox-mcp/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 One MCP server, many vector databases — the same idea as Google's MCP Toolbox for
-databases, applied to vector stores. **Pinecone and Chroma** are wired up; the tool
-surface, backend contract and embedding layer are built so Qdrant, Weaviate,
+databases, applied to vector stores. **Pinecone, Chroma and Weaviate** are wired up;
+the tool surface, backend contract and embedding layer are built so Qdrant,
 Milvus or pgvector slot in behind the same shape.
 
 Built against the **Pinecone Python SDK v10** — the Documents API with declared
@@ -51,9 +50,9 @@ Chroma needs no account — its default store is a local folder
 | **Docker, HTTP** | One shared server, several clients or machines | client connects to `http://host:8000/mcp` |
 | **Source checkout** | Developing the server | `/path/to/VectorToolBoxMCP/.venv/bin/vector-toolbox-mcp` |
 
-**Extras** pick optional dependencies: `chroma`, `openai`, `cohere`, `local`
-(sentence-transformers — large), or `all` (everything but `local`). Pinecone
-support is always included. Example: `vector-toolbox-mcp[chroma,openai]`.
+**Extras** pick optional dependencies: `chroma`, `weaviate`, `openai`, `cohere`,
+`local` (sentence-transformers — large), or `all` (everything but `local`).
+Pinecone support is always included. Example: `vector-toolbox-mcp[chroma,weaviate]`.
 
 ### Configuration
 
@@ -67,6 +66,9 @@ in [`.env.example`](.env.example). The ones most people touch:
 | `VTB_CHROMA_CLIENT` | `persistent` | Chroma default client: `ephemeral`, `persistent`, `http`, `cloud` |
 | `VTB_CHROMA_PATH` | `~/.vector-toolbox/chroma` | Where the persistent Chroma store lives |
 | `CHROMA_API_KEY` / `CHROMA_TENANT` / `CHROMA_DATABASE` | — | Chroma Cloud |
+| `VTB_WEAVIATE_CLIENT` | `local` | Weaviate default client: `local`, `custom`, `cloud`, `embedded` |
+| `VTB_WEAVIATE_HOST` / `VTB_WEAVIATE_PORT` / `VTB_WEAVIATE_GRPC_PORT` | `localhost` / `8080` / `50051` | Self-hosted Weaviate |
+| `WEAVIATE_URL` / `WEAVIATE_API_KEY` | — | Weaviate Cloud |
 | `VTB_EMBED_PROVIDER` / `VTB_EMBED_MODEL` | `pinecone` / `llama-text-embed-v2` | Default embedder (`pinecone`, `openai`, `cohere`, `huggingface`) |
 | `OPENAI_API_KEY`, `COHERE_API_KEY` | — | Those embedders |
 | `VTB_READ_ONLY` | `false` | `true` disables every write and delete tool |
@@ -186,7 +188,6 @@ python scripts/handshake_check.py .venv/bin/vector-toolbox-mcp   # proves MCP wo
 .venv/bin/vector-toolbox-install claude-desktop --mode source
 ```
 
-`bash scripts/setup_macos.sh` does the venv, install and handshake in one go.
 
 ### If it does not show up
 
@@ -197,6 +198,8 @@ python scripts/handshake_check.py .venv/bin/vector-toolbox-mcp   # proves MCP wo
 | Every call errors | Keys not reaching the server — call `vectortoolbox_status`, or run the command by hand |
 | Only read tools work | `VTB_READ_ONLY=true` |
 | `chromadb is not installed` | Add the `chroma` extra: `vector-toolbox-mcp[chroma]` |
+| `weaviate-client is not installed` | Add the `weaviate` extra: `vector-toolbox-mcp[weaviate]` |
+| Weaviate "not reachable" | Both ports must be open: HTTP (8080) **and** gRPC (50051) |
 | HTTP returns 401 | Missing or wrong `Authorization: Bearer` header |
 
 Running the command by hand shows start-up errors the client hides. It then
@@ -369,9 +372,24 @@ live smoke test polls rather than assuming.
 `chroma_delete` · reading: `chroma_query`, `chroma_get`,
 `chroma_full_text_search`, `chroma_validate_filter`, `chroma_sample_metadata`
 
+**Weaviate** — clients: `weaviate_create_client`, `weaviate_list_clients`,
+`weaviate_remove_client`, `weaviate_heartbeat`, `weaviate_list_modules` ·
+collections: `weaviate_list_collections`, `weaviate_get_collection_config`,
+`weaviate_collection_capabilities`, `weaviate_create_collection`,
+`weaviate_update_collection`, `weaviate_add_to_collection`,
+`weaviate_delete_collection` · tenants: `weaviate_list_tenants`,
+`weaviate_create_tenants`, `weaviate_update_tenants`, `weaviate_delete_tenants` ·
+objects: `weaviate_insert_objects`, `weaviate_upsert_objects`,
+`weaviate_update_object`, `weaviate_delete_objects`, `weaviate_add_references` ·
+reading: `weaviate_fetch_objects`, `weaviate_hybrid_search`,
+`weaviate_semantic_search`, `weaviate_keyword_search`, `weaviate_aggregate`,
+`weaviate_validate_filter`
+
 Destructive tools (`pinecone_delete_index`, `pinecone_delete_namespace`,
 `delete_all`, `pinecone_purge_expired`, `chroma_delete_collection`,
-`chroma_delete` with `delete_all`) require `confirm=true`. Setting
+`chroma_delete` with `delete_all`, `weaviate_delete_collection`,
+`weaviate_delete_tenants`, `weaviate_delete_objects` with `delete_all`) require
+`confirm=true`. Setting
 `VTB_READ_ONLY=true` disables every write tool.
 
 ---
@@ -504,16 +522,147 @@ semantic ranking over only the documents that contain your terms.
 
 ---
 
+## Weaviate
+
+The third backend. A Weaviate **collection** is closer to a table than a bag of
+vectors: typed properties, one or more **named vectors** (each with its own
+vectorizer module and index), a BM25 inverted index, cross-references to other
+collections, and optional **multi-tenancy** (an isolated shard per tenant).
+
+```bash
+uv pip install --python .venv/bin/python -e '.[weaviate]'
+```
+
+### Compared with Weaviate's own MCP server
+
+Weaviate's built-in MCP server exposes four tools. Each has an equivalent here,
+and the toolbox covers the rest of the lifecycle around them:
+
+| Built-in tool | Here | What's added |
+|---|---|---|
+| `weaviate-collections-get-config` | `weaviate_get_collection_config` | compact summary by default (`raw=true` for the full JSON); `weaviate_collection_capabilities` says which searches work |
+| `weaviate-tenants-list` | `weaviate_list_tenants` | counts per status; create / activate / deactivate / offload / delete tenants |
+| `weaviate-query-hybrid` | `weaviate_hybrid_search` | same options (`alpha`, target vectors, `query_properties` for BM25 fields, return properties / metadata, `filters`, `tenant`) plus fusion type, BM25 operator, multi-vector combination, group-by, rerank, autocut; self-provided vectors embedded for you |
+| `weaviate-objects-upsert` | `weaviate_upsert_objects` | replace or merge; stable ids from a key property; batch errors reported per object |
+| — | `weaviate_semantic_search`, `weaviate_keyword_search`, `weaviate_fetch_objects`, `weaviate_aggregate` | near-text / near-vector / near-object, BM25 with boosts, sorted and cursor-paged fetch, counts and statistics |
+| — | `weaviate_create_collection`, `weaviate_update_collection`, `weaviate_add_to_collection`, `weaviate_delete_collection` | full collection lifecycle, validated before it reaches the server |
+| — | `weaviate_insert_objects`, `weaviate_update_object`, `weaviate_delete_objects`, `weaviate_add_references` | writes with schema checks, filter deletes with dry-run |
+| — | `weaviate_create_client`, `weaviate_list_modules`, `weaviate_validate_filter`, … | several Weaviates at once, module discovery, filter checking |
+
+Write tools follow the same `VTB_READ_ONLY` switch as every other backend
+(the built-in server's equivalent is `MCP_SERVER_WRITE_ACCESS_ENABLED`).
+
+### Clients
+
+| `kind` | What it is | Settings |
+|---|---|---|
+| `local` | A server on this machine (Docker, binary) | `VTB_WEAVIATE_HOST` / `VTB_WEAVIATE_PORT` (8080) / `VTB_WEAVIATE_GRPC_PORT` (50051) |
+| `custom` | Any self-hosted server | HTTP and gRPC host, port and TLS set separately |
+| `cloud` | Weaviate Cloud | `WEAVIATE_URL` + `WEAVIATE_API_KEY` (or `api_key_env_var`) |
+| `embedded` | The client downloads and runs Weaviate itself (Linux, macOS) | `VTB_WEAVIATE_EMBEDDED_PATH`, `VTB_WEAVIATE_EMBEDDED_VERSION` |
+
+Weaviate's model modules (`text2vec-openai`, `generative-cohere`, …) need the
+provider's key on each request. Any provider key in the environment
+(`OPENAI_API_KEY`, `COHERE_API_KEY`, `VOYAGEAI_API_KEY`, `JINAAI_API_KEY`,
+`MISTRAL_API_KEY`, `ANTHROPIC_API_KEY`, …) is forwarded as the matching
+`X-…-Api-Key` header. Only header names are ever shown.
+
+Quick local server:
+
+```bash
+docker run -d -p 8080:8080 -p 50051:50051 -e DEFAULT_VECTORIZER_MODULE=none \
+  cr.weaviate.io/semitechnologies/weaviate:1.37.0
+```
+
+or `docker compose --profile weaviate up -d` with this repo's compose file.
+
+### Vectors: Weaviate's modules or the toolbox's embedders
+
+Each named vector picks a vectorizer when the collection is created:
+
+* **A Weaviate module** (`text2vec-openai`, `text2vec-cohere`, …): Weaviate embeds
+  `source_properties` on write and query text on search (`near_text`).
+  `weaviate_list_modules` shows what this server has; asking for a module it
+  lacks fails before creation, with the list.
+* **`none` (self-provided)**: you supply vectors, or let the toolbox embed. On
+  writes, `embed_source="body"` embeds that property with `embed_provider` /
+  `embed_model` (default `VTB_EMBED_*`). On searches, text queries against a
+  self-provided vector are embedded the same way and sent as `near_vector`, so
+  semantic and hybrid search work without a vectorizer module.
+
+Objects written without a value for a self-provided vector are reported: vector
+search would never find them.
+
+### Writes — what Weaviate does silently, surfaced
+
+| Weaviate behaviour | What the toolbox does |
+|---|---|
+| Auto-schema adds any unknown property (so `titel` becomes a new column) | refuses unknown property names unless `allow_new_properties=true` |
+| A batch insert succeeds even when some objects fail | returns `errors` with the index, uuid and message of each failure |
+| Re-inserting an existing uuid fails that object | `weaviate_insert_objects` reports `skipped_existing`; `weaviate_upsert_objects` replaces or merges |
+| Data calls on a multi-tenant collection without a tenant fail | refuses up front and lists the tenants |
+| Collection names are case-sensitive | a near-miss gets a "did you mean" |
+
+`id_from="sku"` derives a deterministic UUID from a property, so loading the
+same records twice updates rather than duplicates.
+
+### Filters
+
+`filters` takes Weaviate's native `where` format — the one its REST API, docs
+and built-in MCP server use — **or** the Mongo-style operators the Chroma and
+Pinecone tools use. Both compile to the same query:
+
+```json
+{"operator": "And", "operands": [
+  {"path": ["year"], "operator": "GreaterThanEqual", "valueInt": 2020},
+  {"path": ["tags"], "operator": "ContainsAny", "valueTextArray": ["ai"]}]}
+```
+```json
+{"year": {"$gte": 2020}, "tags": {"$in": ["ai"]}}
+```
+
+| Native | Mongo-style |
+|---|---|
+| `Equal`, `NotEqual` | `$eq`, `$ne` (or a bare value) |
+| `GreaterThan(Equal)`, `LessThan(Equal)` | `$gt`, `$gte`, `$lt`, `$lte` |
+| `Like` (`*`, `?` wildcards) | `$like` |
+| `ContainsAny`, `ContainsAll`, `ContainsNone` | `$in` / `$contains`, `$all`, `$nin` / `$not_contains` |
+| `IsNull` | `$is_null` (or a bare `null`) |
+| `WithinGeoRange` | `$geo` |
+| `And`, `Or`, `Not` | `$and`, `$or`, `$not` |
+
+Paths can be a property, `id`, `_creationTimeUnix`, `_lastUpdateTimeUnix`,
+`len(prop)`, `count(refProp)`, or `["refProp", "TargetCollection", "prop"]` to
+filter through a cross-reference. Property names and value types are checked
+against the collection's schema before sending; `weaviate_validate_filter` shows
+the normalised form.
+
+### Collection settings
+
+| | Set at creation | Change later (`weaviate_update_collection`) |
+|---|---|---|
+| Properties | name, type, tokenization, filterable / searchable / range indexes | descriptions; add new ones (`weaviate_add_to_collection`) |
+| Named vectors | vectorizer + source properties, index type (`hnsw`, `flat`, `dynamic`), distance | HNSW `ef`, dynamic ef, `flat_search_cutoff`, `filter_strategy` (acorn / sweeping), cache size; switch on a quantizer (`pq`, `bq`, `sq`, `rq`); add self-provided vectors |
+| Inverted index | BM25 `b` / `k1`, stopwords, timestamp / null-state / length indexes | BM25, stopwords |
+| Multi-tenancy | on / off, auto-creation, auto-activation | auto-creation, auto-activation |
+| Replication | factor | factor, async replication |
+
+---
+
 ## Tests
 
 ```bash
-.venv/bin/pytest              # unit tests: Pinecone mocked, Chroma run in-memory for real
+.venv/bin/pytest              # Pinecone mocked; Chroma in-memory; Weaviate live tests run when one is reachable
 .venv/bin/ruff check src tests
 .venv/bin/python scripts/smoke_test.py    # live; needs PINECONE_API_KEY
 ```
 
 The live smoke test creates a scratch index prefixed `vtb-smoke-`, exercises each
 of the five recipes, and deletes it again.
+
+`tests/test_weaviate_live.py` runs against a real Weaviate when one answers on
+`localhost:8080` (or `VTB_TEST_WEAVIATE=host:http_port:grpc_port`) and is skipped
+otherwise. It only touches collections prefixed `VtbTest`.
 
 ---
 

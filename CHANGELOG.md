@@ -5,6 +5,14 @@ All notable changes are listed here. Versions follow [SemVer](https://semver.org
 ## [0.2.0] - unreleased
 
 ### Added
+- **Weaviate backend** - 27 `weaviate_*` tools: named clients (local, custom,
+  cloud, embedded), collection create / update / add-property / delete with
+  named vectors, quantizers, BM25 and multi-tenancy; tenants; insert / upsert /
+  update / delete objects and references; hybrid, semantic and keyword search
+  with filters, group-by and rerank; aggregation; a filter language that
+  accepts both Weaviate's native `where` format and the Mongo-style operators
+  used by the Chroma and Pinecone tools. Covers the four tools of Weaviate's
+  built-in MCP server.
 - **Chroma backend** - 24 `chroma_*` tools: named clients (ephemeral,
   persistent, HTTP, Chroma Cloud), collections and embedding functions, HNSW /
   SPANN configuration, add / update / upsert / delete with pre-checks,
@@ -17,8 +25,7 @@ All notable changes are listed here. Versions follow [SemVer](https://semver.org
   `--read-only`, `--version`.
 - **`vector-toolbox-install`** - registers the server in Claude Desktop,
   Antigravity or Cursor (uvx, Docker, source or HTTP modes).
-- Docker image, `docker-compose.yml`, example client configs, CI and release
-  workflows (PyPI + GHCR).
+- Docker image, `docker-compose.yml` and example client configs.
 
 ### Changed
 - `vectortoolbox_status` moved to `tools_common.py`; backend details are now

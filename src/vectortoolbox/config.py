@@ -88,6 +88,20 @@ class Settings:
     chroma_tenant: str | None = None
     chroma_database: str | None = None
 
+    # Weaviate - the "default" client, built lazily from these settings.
+    # kind: local | custom | cloud | embedded
+    weaviate_client: str = "local"
+    weaviate_http_host: str = "localhost"
+    weaviate_http_port: int = 8080
+    weaviate_http_secure: bool = False
+    weaviate_grpc_host: str | None = None
+    weaviate_grpc_port: int = 50051
+    weaviate_grpc_secure: bool | None = None
+    weaviate_url: str | None = None
+    weaviate_api_key: str | None = None
+    weaviate_embedded_path: str = "~/.vector-toolbox/weaviate"
+    weaviate_embedded_version: str | None = None
+
     read_only: bool = False
 
     # HTTP transport (Docker / remote). stdio ignores these.
@@ -122,6 +136,17 @@ def get_settings() -> Settings:
         chroma_api_key=_env("CHROMA_API_KEY", "VTB_CHROMA_API_KEY"),
         chroma_tenant=_env("CHROMA_TENANT", "VTB_CHROMA_TENANT"),
         chroma_database=_env("CHROMA_DATABASE", "VTB_CHROMA_DATABASE"),
+        weaviate_client=_env("VTB_WEAVIATE_CLIENT", default="local"),
+        weaviate_http_host=_env("VTB_WEAVIATE_HOST", default="localhost"),
+        weaviate_http_port=int(_env("VTB_WEAVIATE_PORT", default="8080")),
+        weaviate_http_secure=_flag("VTB_WEAVIATE_SECURE"),
+        weaviate_grpc_host=_env("VTB_WEAVIATE_GRPC_HOST"),
+        weaviate_grpc_port=int(_env("VTB_WEAVIATE_GRPC_PORT", default="50051")),
+        weaviate_grpc_secure=_flag("VTB_WEAVIATE_GRPC_SECURE") if _env("VTB_WEAVIATE_GRPC_SECURE") else None,
+        weaviate_url=_env("WEAVIATE_URL", "VTB_WEAVIATE_URL"),
+        weaviate_api_key=_env("WEAVIATE_API_KEY", "VTB_WEAVIATE_API_KEY"),
+        weaviate_embedded_path=_env("VTB_WEAVIATE_EMBEDDED_PATH", default="~/.vector-toolbox/weaviate"),
+        weaviate_embedded_version=_env("VTB_WEAVIATE_EMBEDDED_VERSION"),
         read_only=_flag("VTB_READ_ONLY"),
         http_host=_env("VTB_HOST", default="127.0.0.1"),
         http_port=int(_env("VTB_PORT", default="8000")),

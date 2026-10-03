@@ -43,6 +43,12 @@ a real Pinecone project and is optional.
 
 ## Releasing (maintainers)
 
-Bump `version` in `pyproject.toml`, add a CHANGELOG entry, then
-`git tag vX.Y.Z && git push --tags`. The release workflow publishes to PyPI
-and GHCR.
+Bump `version` in `pyproject.toml` and add a CHANGELOG entry, then build and
+publish by hand:
+
+```bash
+uv build
+uv publish                     # PyPI; needs a PyPI API token
+docker build -t ghcr.io/salindahulangamuwa/vector-toolbox-mcp:X.Y.Z .
+docker push ghcr.io/salindahulangamuwa/vector-toolbox-mcp:X.Y.Z
+```

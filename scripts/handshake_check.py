@@ -28,7 +28,7 @@ def main() -> int:
         binary = str(Path(__file__).resolve().parents[1] / ".venv" / "bin" / "vector-toolbox-mcp")
 
     if not Path(binary).exists():
-        print(f"not found: {binary}\nRun scripts/setup_macos.sh first.")
+        print(f"not found: {binary}\nCreate the venv first: uv venv && uv pip install -e '.[chroma]'")
         return 1
 
     proc = subprocess.Popen(
@@ -91,6 +91,9 @@ def main() -> int:
         print(f"  Pinecone region     : {pinecone.get('region')}")
         print(f"  Chroma installed    : {chroma.get('installed')} "
               f"({chroma.get('chromadb_version') or 'add the [chroma] extra'})")
+        weaviate = payload.get("weaviate", {})
+        print(f"  Weaviate client     : {weaviate.get('installed')} "
+              f"({weaviate.get('client_version') or 'add the [weaviate] extra'})")
         print(f"  Dense embedder      : {payload['default_dense_embedder']}")
         print(f"  Sparse embedder     : {payload['default_sparse_embedder']}")
         print(f"  Read-only mode      : {payload['read_only']}")

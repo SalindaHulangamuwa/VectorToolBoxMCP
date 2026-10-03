@@ -1,5 +1,6 @@
 # docker compose up -d                      -> server on http://127.0.0.1:8000/mcp
 # docker compose --profile chroma up -d     -> plus a Chroma server it uses as its "default" client
+# docker compose --profile weaviate up -d   -> plus a Weaviate server (set VTB_WEAVIATE_HOST below)
 #
 # Secrets come from .env (copy .env.example). Set VTB_AUTH_TOKEN before
 # exposing the port beyond localhost.
@@ -21,6 +22,9 @@ services:
       # VTB_CHROMA_CLIENT: http
       # VTB_CHROMA_HOST: chroma
       # VTB_CHROMA_PORT: "8000"
+      # With `--profile weaviate`:
+      # VTB_WEAVIATE_CLIENT: local
+      # VTB_WEAVIATE_HOST: weaviate
     ports:
       - "127.0.0.1:8000:8000"   # loopback only; change deliberately, with a token set
     volumes:
@@ -35,6 +39,22 @@ services:
     ports:
       - "127.0.0.1:8001:8000"
 
+  weaviate:
+    profiles: ["weaviate"]
+    image: cr.weaviate.io/semitechnologies/weaviate:1.37.0
+    restart: unless-stopped
+    environment:
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      PERSISTENCE_DATA_PATH: /var/lib/weaviate
+      DEFAULT_VECTORIZER_MODULE: none
+      CLUSTER_HOSTNAME: node1
+    volumes:
+      - weaviate-data:/var/lib/weaviate
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:50051:50051"
+
 volumes:
   vtb-data:
   chroma-data:
+  weaviate-data:

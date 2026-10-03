@@ -5,13 +5,13 @@
 #
 # EXTRAS picks optional dependencies. The default skips `local`
 # (sentence-transformers + torch, several GB); add it if you need it:
-#   docker build --build-arg EXTRAS=chroma,openai,cohere,local .
+#   docker build --build-arg EXTRAS=chroma,weaviate,openai,cohere,local .
 
 ARG PYTHON_VERSION=3.12
 
 # ---------------------------------------------------------------- build ----
 FROM python:${PYTHON_VERSION}-slim AS build
-ARG EXTRAS=chroma,openai,cohere
+ARG EXTRAS=chroma,weaviate,openai,cohere
 COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 WORKDIR /src
@@ -24,7 +24,7 @@ RUN uv venv /opt/venv \
 FROM python:${PYTHON_VERSION}-slim AS runtime
 ARG VERSION=dev
 LABEL org.opencontainers.image.title="vector-toolbox-mcp" \
-      org.opencontainers.image.description="MCP server for vector databases (Pinecone, Chroma)" \
+      org.opencontainers.image.description="MCP server for vector databases (Pinecone, Chroma, Weaviate)" \
       org.opencontainers.image.source="https://github.com/SalindaHulangamuwa/VectorToolBoxMCP" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="${VERSION}"

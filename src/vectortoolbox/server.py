@@ -14,7 +14,7 @@ from ._mcp_compat import MCPServerType
 
 INSTRUCTIONS = """\
 Vector Toolbox: tools for working with vector databases. Two backends are
-wired up - Pinecone (`pinecone_*`) and Chroma (`chroma_*`).
+wired up - Pinecone (`pinecone_*`), Chroma (`chroma_*`) and Weaviate (`weaviate_*`).
 
 Pinecone - working order that avoids most errors:
 
@@ -44,6 +44,17 @@ Chroma - every tool takes `client` (default "default", built from VTB_CHROMA_*):
    `chroma_full_text_search` for $contains/$regex document matching
    (optionally ranked by a vector query).
 5. `chroma_conditional_transaction` when a write must depend on current state.
+
+Weaviate - every tool takes `client` (default "default", built from VTB_WEAVIATE_*):
+
+1. `weaviate_list_collections` / `weaviate_get_collection_config` - properties,
+   named vectors and their vectorizers decide which searches work.
+2. `weaviate_collection_capabilities` before searching a collection you did not build.
+3. `weaviate_hybrid_search` (default choice), `weaviate_semantic_search`,
+   `weaviate_keyword_search`; `weaviate_fetch_objects` for filter-only lookups.
+4. Multi-tenant collections need `tenant` on every data call (`weaviate_list_tenants`).
+5. Self-provided vectors (vectorizer `none`): pass `embed_source` on writes and the
+   search tools embed text queries with the toolbox's embedding providers.
 """
 
 
@@ -57,9 +68,11 @@ def build_server() -> MCPServerType:
     from . import tools_common
     from .backends.chroma import tools as chroma_tools
     from .backends.pinecone import tools as pinecone_tools
+    from .backends.weaviate import tools as weaviate_tools
 
     pinecone_tools.register(mcp)
     chroma_tools.register(mcp)
+    weaviate_tools.register(mcp)
     tools_common.register(mcp)
     return mcp
 
